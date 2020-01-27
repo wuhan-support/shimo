@@ -1,6 +1,8 @@
 package shimo
 
 import (
+	"bytes"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"github.com/dchest/uniuri"
@@ -25,12 +27,13 @@ type Document struct {
 	SheetIndex     int           `json:"sheet_index"`
 
 	Cookie string `json:"-"`
-	EliminateSuffix string `json:"eliminate_suffix"`
+	Suffix string `json:"suffix"`
 
 	CacheTTL       time.Duration `json:"cache_ttl"`
 	CacheBytes     []byte        `json:"cache_bytes"`
 	CacheUpdatedAt time.Time     `json:"cache_updated_at"`
 	JSONCache *json.RawMessage
+	CSVCache []byte
 }
 
 type Response struct {
@@ -101,6 +104,9 @@ func (d *Document) update() error {
 	d.CacheBytes = fileBytes
 	d.CacheUpdatedAt = time.Now()
 
+	d.CSVCache = nil
+	d.JSONCache = nil
+
 	return nil
 }
 
@@ -133,7 +139,7 @@ func (d *Document) GetJSON() (*json.RawMessage, error) {
 	}
 
 	x := x2j.New()
-	x.EliminateSuffix = d.EliminateSuffix
+	x.EliminateSuffix = d.Suffix
 	message, err := x.Convert(xlsxFile)
 	if err != nil {
 		return nil, err
@@ -142,32 +148,45 @@ func (d *Document) GetJSON() (*json.RawMessage, error) {
 	return d.JSONCache, nil
 }
 
-//func (d *Document) GetCSV(xlsxBytes []byte) error {
-//	xlsxFile, err := xlsx.OpenBinary(xlsxBytes)
-//	if err != nil {
-//		return err
-//	}
-//
-//	buf := bytes.NewBufferString("")
-//
-//	cw := csv.NewWriter(buf)
-//	sheet := xlsxFile.Sheets[sheetIndex]
-//	var vals []string
-//	for _, row := range sheet.Rows {
-//		if row != nil {
-//			vals = vals[:0]
-//			for _, cell := range row.Cells {
-//				str, err := cell.FormattedValue()
-//				if err != nil {
-//					vals = append(vals, err.Error())
-//				}
-//				vals = append(vals, str)
-//			}
-//		}
-//		cw.Write(vals)
-//	}
-//	cw.Flush()
-//	if err := cw.Error(); err != nil {
-//		return err
-//	}
-//}
+func (d *Document) GetCSV() ([]byte, error) {
+	err := d.touchCache()
+	if err != nil {
+		return nil, err
+	}
+
+	if d.CSVCache != nil {
+		return d.CSVCache, nil
+	}
+
+	xlsxFile, err := xlsx.OpenBinary(d.CacheBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	buf := bytes.NewBufferString("")
+
+	cw := csv.NewWriter(buf)
+	sheet := xlsxFile.Sheets[sheetIndex]
+	var vals []string
+	for _, row := range sheet.Rows {
+		if row != nil {
+			vals = vals[:0]
+			for _, cell := range row.Cells {
+				str, err := cell.FormattedValue()
+				if err != nil {
+					vals = append(vals, err.Error())
+				}
+				vals = append(vals, str)
+			}
+		}
+		cw.Write(vals)
+	}
+	cw.Flush()
+	if err := cw.Error(); err != nil {
+		return nil, err
+	}
+
+	d.CSVCache = buf.Bytes()
+
+	return buf.Bytes(), nil
+}
