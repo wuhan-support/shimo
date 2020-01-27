@@ -23,12 +23,13 @@ var (
 type Document struct {
 	GUID           string        `json:"guid"`
 	SheetIndex     int           `json:"sheet_index"`
+
 	Cookie string `json:"-"`
+	EliminateSuffix string `json:"eliminate_suffix"`
 
 	CacheTTL       time.Duration `json:"cache_ttl"`
 	CacheBytes     []byte        `json:"cache_bytes"`
 	CacheUpdatedAt time.Time     `json:"cache_updated_at"`
-
 	JSONCache *json.RawMessage
 }
 
@@ -132,6 +133,7 @@ func (d *Document) GetJSON() (*json.RawMessage, error) {
 	}
 
 	x := x2j.New()
+	x.EliminateSuffix = d.EliminateSuffix
 	message, err := x.Convert(xlsxFile)
 	if err != nil {
 		return nil, err

@@ -7,6 +7,7 @@ import (
 
 func TestDocument_GetJSON(t *testing.T) {
 	d := NewDocument("xxx", "xxx")
+	d.EliminateSuffix = "（"
 	data, err := d.GetJSON()
 	if err != nil {
 		t.Fatalf("failed to get json: %v", err)

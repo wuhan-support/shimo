@@ -15,8 +15,9 @@ import (
 var defaultX2JSON = New()
 
 type X2JSON struct {
-	toLower bool
-	toUpper bool
+	toLower         bool
+	toUpper         bool
+	EliminateSuffix string
 }
 
 func New() X2JSON {
@@ -44,6 +45,13 @@ func (x *X2JSON) toCase(s string) string {
 	return s
 }
 
+func (x *X2JSON) replaceSuffix(s string) string {
+	if x.EliminateSuffix != "" {
+		return strings.Split(s, x.EliminateSuffix)[0]
+	}
+	return s
+}
+
 func (x *X2JSON) sheet2Map(sheet *xlsx.Sheet) ([]map[string]string, error) {
 	if len(sheet.Rows) < 1 {
 		return nil, fmt.Errorf("sheet rows error")
@@ -51,7 +59,8 @@ func (x *X2JSON) sheet2Map(sheet *xlsx.Sheet) ([]map[string]string, error) {
 
 	titles := make([]string, len(sheet.Rows[0].Cells))
 	for i, c := range sheet.Rows[0].Cells {
-		titles[i] = x.toCase(c.Value)
+		converted := x.toCase(c.Value)
+		titles[i] = x.replaceSuffix(converted)
 	}
 
 	converts := make([]map[string]string, len(sheet.Rows[1:]))
@@ -59,6 +68,9 @@ func (x *X2JSON) sheet2Map(sheet *xlsx.Sheet) ([]map[string]string, error) {
 		convertMap := map[string]string{}
 
 		for j := 0; j < len(titles); j++ {
+			if titles[j] == "" {
+				continue
+			}
 			if j >= len(r.Cells) {
 				convertMap[titles[j]] = ""
 			} else {
