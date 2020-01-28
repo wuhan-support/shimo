@@ -70,9 +70,13 @@ func (d *Document) update() error {
 	request.Header.Set("Cookie", d.Cookie)
 	request.Header.Set("Referer", fmt.Sprintf("https://shimo.im/sheets/%s/MODOC", d.GUID))
 
-	response, err := client.Do(request)
+	var response *http.Response
+	response, err = client.Do(request)
 	if err != nil {
-		return err
+		response, err = client.Do(request)
+		if err != nil {
+			return err
+		}
 	}
 	if response.StatusCode != 200 {
 		log.Printf("failed to fetch http resource: status code %v", response.StatusCode)
